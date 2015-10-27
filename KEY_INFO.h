@@ -25,4 +25,5 @@ public:
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	BOOL PreTranslateMessage(MSG* pMsg);
 	CString V_Key_ShipName;
+	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
 };

@@ -28,8 +28,12 @@ char siostate; //串口状态 是否打开的变量
 char Timeflag;  //定时器标记变量
 char TimeIndex; //等待串口连接是定时器计数
 char configShipName = 0;
-int IsSize = 0;  //是否写入船舶尺寸标记变量
+char IsSize = 0;  //是否写入船舶尺寸标记变量
 char OperatePage;//当前操作的页
+extern char WriteIndex;    //全部注入标记
+extern char AllReadFlag;   //全部读取标记
+extern char WriteIsSuccess; //判断全部注入是否成功
+
 
 void InitConsoleWindow() //初始化控制台
 {
@@ -42,235 +46,7 @@ void InitConsoleWindow() //初始化控制台
     setvbuf(stdout, NULL, _IONBF, 0);
 }
 
-//  Edit 数据清空
-void CAis_NetDlg::EditEmpty(void)
-{
-		page1.V_Drift_shipName.Empty();
-		page1.V_Drift_NetNum.Empty();
-		page1.V_Drift_MMSI.Empty();
-		page1.V_Drift_Code.Empty();
-		page1.V_Size_Length.Empty();
-		page1.V_Size_Width.Empty();
-		page1.UpdateData(FALSE);
-
-		page2.V_Trawl_ShipName.Empty();
-		page2.V_Trawl_NetNum.Empty();
-		page2.V_Trawl_MMSI.Empty();
-		page2.V_Trawl_code.Empty();
-		page2.V_Trawl_Length.Empty();
-		page2.V_Trawl_Width.Empty();
-		page2.UpdateData(FALSE);
-
-		page3.V_Key_ShipName.Empty();
-		page3.UpdateData(FALSE);
-}
-
-// 用于应用程序“关于”菜单项的 CAboutDlg 对话框
-
-class CAboutDlg : public CDialogEx
-{
-public:
-	CAboutDlg();
-
-// 对话框数据
-	enum { IDD = IDD_ABOUTBOX };
-
-	protected:
-	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV 支持
-
-// 实现
-protected:
-	DECLARE_MESSAGE_MAP()
-public:
-	afx_msg void OnBnClickedOk();
-};
-
-CAboutDlg::CAboutDlg() : CDialogEx(CAboutDlg::IDD)
-{
-}
-
-void CAboutDlg::DoDataExchange(CDataExchange* pDX)
-{
-	CDialogEx::DoDataExchange(pDX);
-}
-
-BEGIN_MESSAGE_MAP(CAboutDlg, CDialogEx)
-END_MESSAGE_MAP()
-
-
-// CAis_NetDlg 对话框
-
-
-
-
-CAis_NetDlg::CAis_NetDlg(CWnd* pParent /*=NULL*/)
-	: CDialogEx(CAis_NetDlg::IDD, pParent)
-	//, com_Value(_T(""))
-	//, IsSize(0)
-{
-	m_hIcon = AfxGetApp()->LoadIcon(IDI_ICON1);
-}
-
-void CAis_NetDlg::DoDataExchange(CDataExchange* pDX)
-{
-	CDialogEx::DoDataExchange(pDX);
-	DDX_Control(pDX, IDC_STATIC1, static1);
-	DDX_Control(pDX, IDC_OpenCom, OpenCom);
-	DDX_Control(pDX, IDC_TAB1, m_tabCtrl);
-}
-
-BEGIN_MESSAGE_MAP(CAis_NetDlg, CDialogEx)
-	ON_WM_SYSCOMMAND()
-	ON_WM_PAINT()
-	ON_WM_QUERYDRAGICON()
-	ON_BN_CLICKED(IDC_OpenCom, &CAis_NetDlg::OnBnClickedOpenCom)
-	ON_WM_TIMER()
-	ON_WM_CTLCOLOR()
-	ON_WM_CTLCOLOR()
-	ON_NOTIFY(TCN_SELCHANGE, IDC_TAB1, &CAis_NetDlg::OnSelchangeTab1)
-END_MESSAGE_MAP()
-
-
-// CAis_NetDlg 消息处理程序
-
-BOOL CAis_NetDlg::OnInitDialog()
-{
-	CDialogEx::OnInitDialog();
-
-	//InitConsoleWindow();
-	// 将“关于...”菜单项添加到系统菜单中。
-
-	// IDM_ABOUTBOX 必须在系统命令范围内。
-	ASSERT((IDM_ABOUTBOX & 0xFFF0) == IDM_ABOUTBOX);
-	ASSERT(IDM_ABOUTBOX < 0xF000);
-
-	CMenu* pSysMenu = GetSystemMenu(FALSE);
-	if (pSysMenu != NULL)
-	{
-		BOOL bNameValid;
-		CString strAboutMenu;
-		bNameValid = strAboutMenu.LoadString(IDS_ABOUTBOX);
-		ASSERT(bNameValid);
-		if (!strAboutMenu.IsEmpty())
-		{
-			pSysMenu->AppendMenu(MF_SEPARATOR);
-			pSysMenu->AppendMenu(MF_STRING, IDM_ABOUTBOX, strAboutMenu);
-		}
-	}
-
-	// 设置此对话框的图标。当应用程序主窗口不是对话框时，框架将自动
-	//  执行此操作
-	SetIcon(m_hIcon, TRUE);			// 设置大图标
-	SetIcon(m_hIcon, FALSE);		// 设置小图标
-
-	// TODO: 在此添加额外的初始化代码
-
-	//添加 Tab Control
-
-	//添加选项卡名称
-	m_tabCtrl.InsertItem(0,_T("流刺网/帆张网网位仪信息"));
-	m_tabCtrl.InsertItem(1,_T("拖网网位仪信息"));
-	m_tabCtrl.InsertItem(2,_T("钥匙信息"));
-    
-	//设置IDC_TAB1为父窗口
-	page1.Create(IDD_DriftNet,GetDlgItem(IDC_TAB1));
-	page2.Create(IDD_TRAWL,GetDlgItem(IDC_TAB1));
-	page3.Create(IDD_KEY,GetDlgItem(IDC_TAB1));
-    
-	//获得IDC_TABTEST客户区大小
-	CRect rc;
-	m_tabCtrl.GetClientRect(&rc);
-    
-	//调整子对话框在父窗口中的位置
-	rc.top += 25;
-	rc.bottom -= 1;
-	rc.left += 1;
-	rc.right -= 2;
-
-	//设置子对话框尺寸并移动到指定位置
-	page1.MoveWindow(&rc);
-	page2.MoveWindow(&rc);
-	page3.MoveWindow(&rc);
-
-	//分别设置隐藏和显示
-	page1.ShowWindow(true);
-	page2.ShowWindow(false);
-	page3.ShowWindow(false);
-
-	//设置默认的选项卡
-	m_tabCtrl.SetCurSel(0);
-
-	SetTimer(1,20,NULL); // 每20ms 读取一次串口信息
-
-	// 变量初始化
-	IsConnect = 0;
-	siostate = 0;
-	Timeflag = 0;
-	TimeIndex = 0;
-	OperatePage = 0;
-
-	// 控件状态初始化
-	ItemInit();
-
- 	static1.SetWindowText("网位仪未连接");
-	My_StaticFont.CreatePointFont(150, "宋体");
-	static1.SetFont(&My_StaticFont);   
-	pMainDlg = this;
-	PortSet();
-
-	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
-}
-
-void CAis_NetDlg::OnSysCommand(UINT nID, LPARAM lParam)
-{
-	if ((nID & 0xFFF0) == IDM_ABOUTBOX)
-	{
-		CAboutDlg dlgAbout;
-		dlgAbout.DoModal();
-	}
-	else
-	{
-		CDialogEx::OnSysCommand(nID, lParam);
-	}
-}
-
-// 如果向对话框添加最小化按钮，则需要下面的代码
-//  来绘制该图标。对于使用文档/视图模型的 MFC 应用程序，
-//  这将由框架自动完成。
-
-void CAis_NetDlg::OnPaint()
-{
-	if (IsIconic())
-	{
-		CPaintDC dc(this); // 用于绘制的设备上下文
-
-		SendMessage(WM_ICONERASEBKGND, reinterpret_cast<WPARAM>(dc.GetSafeHdc()), 0);
-
-		// 使图标在工作区矩形中居中
-		int cxIcon = GetSystemMetrics(SM_CXICON);
-		int cyIcon = GetSystemMetrics(SM_CYICON);
-		CRect rect;
-		GetClientRect(&rect);
-		int x = (rect.Width() - cxIcon + 1) / 2;
-		int y = (rect.Height() - cyIcon + 1) / 2;
-
-		// 绘制图标
-		dc.DrawIcon(x, y, m_hIcon);
-	}
-	else
-	{
-		CDialogEx::OnPaint();
-	}
-}
-
-//当用户拖动最小化窗口时系统调用此函数取得光标
-//显示。
-HCURSOR CAis_NetDlg::OnQueryDragIcon()
-{
-	return static_cast<HCURSOR>(m_hIcon);
-}
-
-
+// 串口设置
 void CAis_NetDlg::PortSet(void)
 {
 	
@@ -338,6 +114,318 @@ void CAis_NetDlg::PortSet(void)
 	}
 }
 
+
+//  Edit 数据清空
+void CAis_NetDlg::EditEmpty(void)
+{
+		page1.V_Drift_shipName.Empty();
+		page1.V_Drift_NetNum.Empty();
+		page1.V_Drift_MMSI.Empty();
+		page1.V_Drift_Code.Empty();
+		page1.V_Size_Length.Empty();
+		page1.V_Size_Width.Empty();
+		page1.UpdateData(FALSE);
+
+		page2.V_Trawl_ShipName.Empty();
+		page2.V_Trawl_NetNum.Empty();
+		page2.V_Trawl_MMSI.Empty();
+		page2.V_Trawl_code.Empty();
+		page2.V_Trawl_Length.Empty();
+		page2.V_Trawl_Width.Empty();
+		page2.UpdateData(FALSE);
+
+		page3.V_Key_ShipName.Empty();
+		page3.UpdateData(FALSE);
+}
+
+// 设置鼠标图标
+BOOL CAis_NetDlg::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
+{
+	// TODO: 在此添加消息处理程序代码和/或调用默认值
+	// 当鼠标移动到LOGO上更换鼠标图案
+	CRect rect;
+	m_Picture.GetWindowRect(&rect);
+	ScreenToClient(&rect);
+
+	CPoint point;
+	GetCursorPos(&point);
+	ScreenToClient(&point);
+
+	if (rect.PtInRect(point) && m_hCursor)
+	{
+		SetCursor(m_hCursor);
+		return TRUE;
+	};
+	return CDialogEx::OnSetCursor(pWnd, nHitTest, message);
+}
+
+
+void CAis_NetDlg::OnLButtonDown(UINT nFlags, CPoint point)
+{
+	// TODO: 在此添加消息处理程序代码和/或调用默认值
+	//  单击图片打开网页
+	CRect rect;
+	m_Picture.GetWindowRect(&rect);
+	ScreenToClient(&rect);
+	
+	if (rect.PtInRect(point))
+		ShellExecute(AfxGetMainWnd()->m_hWnd,_T("open"),
+			_T("http://www.sandemarine.com/"),_T(""),NULL,0);
+	CDialogEx::OnLButtonDown(nFlags, point);
+}
+
+// 用于应用程序“关于”菜单项的 CAboutDlg 对话框
+
+class CAboutDlg : public CDialogEx
+{
+public:
+	CAboutDlg();
+
+// 对话框数据
+	enum { IDD = IDD_ABOUTBOX };
+
+	protected:
+	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV 支持
+
+// 实现
+protected:
+	DECLARE_MESSAGE_MAP()
+public:
+	afx_msg void OnBnClickedOk();
+};
+
+CAboutDlg::CAboutDlg() : CDialogEx(CAboutDlg::IDD)
+{
+}
+
+void CAboutDlg::DoDataExchange(CDataExchange* pDX)
+{
+	CDialogEx::DoDataExchange(pDX);
+}
+
+BEGIN_MESSAGE_MAP(CAboutDlg, CDialogEx)
+END_MESSAGE_MAP()
+
+
+// CAis_NetDlg 对话框
+
+
+
+
+CAis_NetDlg::CAis_NetDlg(CWnd* pParent /*=NULL*/)
+	: CDialogEx(CAis_NetDlg::IDD, pParent)
+	//, com_Value(_T(""))
+	//, IsSize(0)
+{
+	m_hIcon = AfxGetApp()->LoadIcon(IDI_ICON1);
+	m_hCursor = AfxGetApp()->LoadCursor(IDC_CURSOR1); //载入鼠标图标
+}
+
+void CAis_NetDlg::DoDataExchange(CDataExchange* pDX)
+{
+	CDialogEx::DoDataExchange(pDX);
+	DDX_Control(pDX, IDC_STATIC1, static1);
+	DDX_Control(pDX, IDC_OpenCom, OpenCom);
+	DDX_Control(pDX, IDC_TAB1, m_tabCtrl);
+	DDX_Control(pDX, IDC_STATIC3, m_Picture);
+}
+
+BEGIN_MESSAGE_MAP(CAis_NetDlg, CDialogEx)
+	ON_WM_SYSCOMMAND()
+	ON_WM_PAINT()
+	ON_WM_QUERYDRAGICON()
+	ON_BN_CLICKED(IDC_OpenCom, &CAis_NetDlg::OnBnClickedOpenCom)
+	ON_WM_TIMER()
+	ON_WM_CTLCOLOR()
+	ON_WM_CTLCOLOR()
+	ON_NOTIFY(TCN_SELCHANGE, IDC_TAB1, &CAis_NetDlg::OnSelchangeTab1)
+ON_WM_SETCURSOR()
+ON_WM_LBUTTONDOWN()
+END_MESSAGE_MAP()
+
+
+// CAis_NetDlg 消息处理程序
+
+BOOL CAis_NetDlg::OnInitDialog()
+{
+	CDialogEx::OnInitDialog();
+
+	//InitConsoleWindow();
+	// 将“关于...”菜单项添加到系统菜单中。
+
+	// IDM_ABOUTBOX 必须在系统命令范围内。
+	ASSERT((IDM_ABOUTBOX & 0xFFF0) == IDM_ABOUTBOX);
+	ASSERT(IDM_ABOUTBOX < 0xF000);
+
+	CMenu* pSysMenu = GetSystemMenu(FALSE);
+	if (pSysMenu != NULL)
+	{
+		BOOL bNameValid;
+		CString strAboutMenu;
+		bNameValid = strAboutMenu.LoadString(IDS_ABOUTBOX);
+		ASSERT(bNameValid);
+		if (!strAboutMenu.IsEmpty())
+		{
+			pSysMenu->AppendMenu(MF_SEPARATOR);
+			pSysMenu->AppendMenu(MF_STRING, IDM_ABOUTBOX, strAboutMenu);
+		}
+	}
+
+	// 设置此对话框的图标。当应用程序主窗口不是对话框时，框架将自动
+	//  执行此操作
+	SetIcon(m_hIcon, TRUE);			// 设置大图标
+	SetIcon(m_hIcon, FALSE);		// 设置小图标
+
+	// TODO: 在此添加额外的初始化代码
+
+	//添加 Tab Control
+
+	//添加选项卡名称
+	m_tabCtrl.InsertItem(0,_T("流刺网/帆张网网位仪信息"));
+	//m_tabCtrl.InsertItem(1,_T("拖网网位仪信息"));
+	m_tabCtrl.InsertItem(2,_T("钥匙信息"));
+    
+	//设置IDC_TAB1为父窗口
+	page1.Create(IDD_DriftNet,GetDlgItem(IDC_TAB1));
+	page2.Create(IDD_TRAWL,GetDlgItem(IDC_TAB1));
+	page3.Create(IDD_KEY,GetDlgItem(IDC_TAB1));
+    
+	//获得IDC_TABTEST客户区大小
+	CRect rc;
+	m_tabCtrl.GetClientRect(&rc);
+    
+	//调整子对话框在父窗口中的位置
+	rc.top += 25;
+	rc.bottom -= 1;
+	rc.left += 1;
+	rc.right -= 2;
+
+	//设置子对话框尺寸并移动到指定位置
+	page1.MoveWindow(&rc);
+	page2.MoveWindow(&rc);
+	page3.MoveWindow(&rc);
+
+	//分别设置隐藏和显示
+	page1.ShowWindow(true);
+	page2.ShowWindow(false);
+	page3.ShowWindow(false);
+
+	//设置默认的选项卡
+	m_tabCtrl.SetCurSel(0);
+
+	SetTimer(1,20,NULL); // 每20ms 读取一次串口信息
+
+	// 变量初始化
+	IsConnect = 0;
+	siostate = 0;
+	Timeflag = 0;
+	TimeIndex = 0;
+	OperatePage = 0;
+
+	// 控件状态初始化
+	ItemInit();
+	((CButton*)(page1.GetDlgItem(IDC_RADIO_1min)))->SetCheck(TRUE); // 默认为1分钟发送间隔
+	((CButton*)(page1.GetDlgItem(IDC_KIND1)))->SetCheck(TRUE);		//默认选择流刺网
+	page1.V_Drift_Interval = 2;  
+	page1.kind = 0;
+
+
+ 	static1.SetWindowText("网位仪未连接");
+	My_StaticFont.CreatePointFont(150, "宋体");
+	static1.SetFont(&My_StaticFont);   
+	pMainDlg = this;
+	PortSet();
+
+	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
+}
+
+void CAis_NetDlg::OnSysCommand(UINT nID, LPARAM lParam)
+{
+	if ((nID & 0xFFF0) == IDM_ABOUTBOX)
+	{
+		CAboutDlg dlgAbout;
+		dlgAbout.DoModal();
+	}
+	else
+	{
+		CDialogEx::OnSysCommand(nID, lParam);
+	}
+}
+
+// 如果向对话框添加最小化按钮，则需要下面的代码
+//  来绘制该图标。对于使用文档/视图模型的 MFC 应用程序，
+//  这将由框架自动完成。
+
+void CAis_NetDlg::OnPaint()
+{
+	if (IsIconic())
+	{
+		CPaintDC dc(this); // 用于绘制的设备上下文
+
+		SendMessage(WM_ICONERASEBKGND, reinterpret_cast<WPARAM>(dc.GetSafeHdc()), 0);
+
+		// 使图标在工作区矩形中居中
+		int cxIcon = GetSystemMetrics(SM_CXICON);
+		int cyIcon = GetSystemMetrics(SM_CYICON);
+		CRect rect;
+		GetClientRect(&rect);
+		int x = (rect.Width() - cxIcon + 1) / 2;
+		int y = (rect.Height() - cyIcon + 1) / 2;
+
+		// 绘制图标
+		dc.DrawIcon(x, y, m_hIcon);
+	}
+	else
+	{
+		CDialogEx::OnPaint();
+	}
+}
+
+//当用户拖动最小化窗口时系统调用此函数取得光标
+//显示。
+HCURSOR CAis_NetDlg::OnQueryDragIcon()
+{
+	return static_cast<HCURSOR>(m_hIcon);
+}
+
+
+
+//
+//void CAis_NetDlg::OnBnClickedAllwrite()
+//{
+//	// TODO: 在此添加控件通知处理程序代码
+//	if (!page1.bt_shipname_write.GetState()) 
+//	{
+//		shipNameWrite();
+//	}
+//	if (page1.bt_mmsi_write.GetState())
+//	{
+//		MMSIWrite();
+//	}
+//	if (page1.bt_intervalwrite.GetState())
+//	{
+//		IntervalWrite();
+//	}
+//	if (page1.bt_kindwrite.GetState())
+//	{
+//		kindWrite();
+//	}	
+//	if (page1.bt_size_write.GetState())
+//	{
+//		sizeWrite();
+//	}
+//}
+//
+//
+//void CAis_NetDlg::OnBnClickedAllread()
+//{
+//	// TODO: 在此添加控件通知处理程序代码
+//
+//	shipNameRead();
+//	 MMSIRead();
+//}
+
+
 void CAis_NetDlg::OnBnClickedOpenCom()
 {
 	// TODO: 在此添加控件通知处理程序代码
@@ -355,7 +443,7 @@ void CAis_NetDlg::OnBnClickedOpenCom()
 			m_Array[1] = 0x17;
 			SioPuts(commport,(LPSTR)(m_Array), 18);
 			Invalidate (false);
-			SetTimer(2,10000,NULL); //连接失败处理
+			SetTimer(2,15000,NULL); //连接失败处理
 			SetTimer(3,1000,NULL);  //等待连接
 
 			OpenCom.SetWindowText(_T("关闭串口"));
@@ -410,6 +498,7 @@ void CAis_NetDlg::getcomm(void)
 		{
 			rxdata[icom] = temp;
 			
+			printf ("rxdata[%d] = %x\n",icom,rxdata[icom]);
 			if (icom == 17)
 			{
 				com_start = 0;
@@ -421,11 +510,10 @@ void CAis_NetDlg::getcomm(void)
 						IsConnect = 1;
 						OpenCom.EnableWindow(TRUE);
 						static1.SetWindowText(_T("网位仪已连接     "));
-						KillTimer(2);
 						KillTimer(3);
+						KillTimer(2);
 						TimeIndex = 0;
 						EnableItem();
-
 					}
 					else 
 					{
@@ -436,18 +524,60 @@ void CAis_NetDlg::getcomm(void)
 					break;
 
 				case WriteShipName: //船名注入
-						if(rxdata[2] == 0x01)
-							MessageBox(_T(" 船名注入成功!"),_T("提示"));
-						else if (rxdata[2] == 0x00)
-							MessageBox(_T("船名注入失败!"),_T("提示"));
-						else if(rxdata[2] == 0x02)
-							MessageBox(_T("请先解密!"),_T("提示"));
-
-						if (OperatePage == 0)
+					{
+						if(WriteIndex == 0) //单个注入
+						{
+							if(rxdata[2] == 0x01)
+							{
+								MessageBox(_T("船名注入成功!"),_T("提示"));
+							}
+							else if (rxdata[2] == 0x00)
+								MessageBox(_T("船名注入失败!"),_T("提示"));
+							else if(rxdata[2] == 0x02)
+							{
+								MessageBox(_T("请先解密!"),_T("提示"));
+							}
 							page1.KillTimer(1);
-						else if (OperatePage == 1)
-							page2.KillTimer(1);
-						EnableItem();
+							EnableItem();
+						}
+						else  //全部注入
+						{
+							if(rxdata[2] == 0x01){
+								WriteIsSuccess++;  printf ("船名注入成功\n");}
+							else if(rxdata[2] == 0x02)
+							{
+								page1.KillTimer (2);
+								MessageBox(_T("请先解密!"),_T("提示"));
+								WriteIndex = 0;
+							}
+						}
+					}
+
+
+						//if(rxdata[2] == 0x01)
+						//{
+						//	if(WriteIndex == 0)  //屏蔽全部注入
+						//	{
+						//		MessageBox(_T("船名注入成功!"),_T("提示"));
+						//	}
+						//	else WriteIsSuccess++;
+						//}
+						//else if (rxdata[2] == 0x00)
+						//	MessageBox(_T("船名注入失败!"),_T("提示"));
+						//else if(rxdata[2] == 0x02)
+						//{
+						//	//IsCode = 1;
+						//	page1.KillTimer (2);
+						//	MessageBox(_T("请先解密!"),_T("提示"));
+						//	
+						//	WriteIndex = 0;
+						//}	
+						//	page1.KillTimer(1);
+
+
+						//if (WriteIndex == 0)
+						//	EnableItem();
+						
 					icom = 0;
 					break;
 
@@ -458,55 +588,86 @@ void CAis_NetDlg::getcomm(void)
 						unsigned char rxdatatemp;
 						CString strtemp1;CString strtemp2;
 						unsigned char e = 0;
+						char shipname[20]={0};
+						char shipindex = 0;
+						char netNumFlag;
 
 						strtemp1.Empty();strtemp2.Empty();
 						rxdatatemp = rxdata[2]/6;
+						printf ("rxdatatemp = %d\n",rxdatatemp);
 						for(i=0;i<5;i++)
-						{   b[i] = (rxdata[3+i*3]<<16); b[i] += (rxdata[4+i*3]<<8); b[i] += rxdata[5+i*3]; }
+						{  
+							b[i] = (rxdata[3+i*3]<<16); b[i] += (rxdata[4+i*3]<<8); b[i] += rxdata[5+i*3];
+						}
 						
 						for(i=0;i<5;i++)//for(i=0;i<rxdata[1]/6;i++)
 						{
 							for(j=0;j<4;j++)
 							{
 								k++;
-								if(e == 0)  //船名不含网号部分
-								{
-									c = (unsigned char )((b[i]>>(18 - j*6)) & 0x3F); //转换成6位ASCII码
-									if(c <= 31)   c += 0x40; //转换成8位ASCII码
+								c = (unsigned char )((b[i]>>(18 - j*6)) & 0x3F); //转换成6位ASCII码
+								if(c <= 31)   c += 0x40; //转换成8位ASCII码
 
-									if(c == '-')
-									{
-										e = 1;
-									}
-									else 
-									{
-										strtemp1.Format(_T("%c"),c);
-										if (OperatePage == 0)
-										{
-											page1.V_Drift_shipName += strtemp1;
-										}
-										else if (OperatePage == 1)
-										{
-											page2.V_Trawl_ShipName += strtemp1;
-										}
-									}
-								}
-								else if(e == 1 && k <= rxdatatemp)  //网号部分
+								shipname[k-1] = c;
+								printf ("shipname[%d]=%c\n",k-1,c);
+
+							}
+						}
+
+						// 找到最后一个‘-’的位置
+						for (shipindex = 0; shipindex<=rxdatatemp; shipindex++ )
+						{
+							if (shipname[shipindex]== '-')
+								netNumFlag = shipindex;
+						}
+						printf("netflag = %d\n",netNumFlag);
+
+
+						for(i=0, k =0;i<5;i++)//for(i=0;i<rxdata[1]/6;i++)
+						{
+
+							for(j=0;j<4;j++)
+							{
+								k++;
+								c = (unsigned char )((b[i]>>(18 - j*6)) & 0x3F); //转换成6位ASCII码
+								if(c <= 31)   c += 0x40; //转换成8位ASCII码
+
+								printf ("shipname[%d]=%c\n",k-1,c);
+								if(k <= netNumFlag)  //船名不含网号部分
 								{
+
+									c = (unsigned char )((b[i]>>(18 - j*6)) & 0x3F); //转换成6位ASCII码
+									if(c <= 31)   
+										c += 0x40; //转换成8位ASCII码
+
+										printf ("c = %d\n",c);
+
+									strtemp1.Format(_T("%c"),c);
+										
+									page1.V_Drift_shipName += strtemp1;									
+									if (k == netNumFlag)
+									{
+										j++;
+										printf ("j = %d\n",j);
+									}
+
+								}
+								else if( k < rxdatatemp)  //网号部分
+								{
+									printf ("ok = %d\n",k);
+									if (k%4 == 1)//k == 5||k == 9||k == 13 || k == 17
+										j++;
+									printf ("j = %d\n",j);
 									d = (unsigned char )((b[i]>>(18 - j*6)) & 0x3F); //转换成6位ASCII码
+									printf ("d[%d] =%d\n ",j,d);
 									if(d <= 31)   d += 0x40; //转换成8位ASCII码
 									strtemp2.Format(_T("%c"),d);
-									if (OperatePage == 0)
-									{
-										page1.V_Drift_NetNum += strtemp2; //显示网号
-									}
-									else if (OperatePage == 1)
-									{
-										page2.V_Trawl_NetNum += strtemp2; //显示网号
-									}
+
+									page1.V_Drift_NetNum += strtemp2; //显示网号
 								}
 							}
 						}
+
 						icom = 0;
 
 						if (OperatePage == 0)
@@ -519,27 +680,60 @@ void CAis_NetDlg::getcomm(void)
 							page2.UpdateData(FALSE);
 							page2.KillTimer(1);
 						}
-						EnableItem();
+						if (AllReadFlag == 0) //屏蔽全部读取
+							EnableItem();
+						
 				}
 				break;
 
 				case WriteMMSI:  //MMSI注入
-						if(rxdata[2] == 0x01)   MessageBox("MMSI号注入成功!","提示");
-						else if(rxdata[2] == 0x00)   MessageBox("MMSI号注入失败!","提示");
-						else if(rxdata[2] == 0x02)   MessageBox("请先解密!","提示");
-
-						if (OperatePage == 0)
+					{
+						if(WriteIndex == 0)	 //单个注入
 						{
+							if(rxdata[2] == 0x01)  
+								MessageBox("MMSI号注入成功!","提示");
+							else if(rxdata[2] == 0x00) 
+								MessageBox("MMSI号注入失败!","提示");
+							else if(rxdata[2] == 0x02)  
+								MessageBox("请先解密!","提示");
 							page1.KillTimer(1);
+							EnableItem();
 						}
-						else if (OperatePage == 1)
+						else //全部注入
 						{
-							page2.KillTimer(1);
+							if(rxdata[2] == 0x01)  
+								WriteIsSuccess++;
+							printf ("MMSI注入成功");
 						}
-						EnableItem();
+
+					}
+					
+
+
+						//if(rxdata[2] == 0x01)  
+						//{
+						//	if(WriteIndex == 0)  //屏蔽全部注入
+						//	{
+						//		MessageBox("MMSI号注入成功!","提示");
+						//	}
+						//	else WriteIsSuccess++;
+						//}
+						//else if(rxdata[2] == 0x00)   MessageBox("MMSI号注入失败!","提示");
+						//else if(rxdata[2] == 0x02)   MessageBox("请先解密!","提示");
+
+						//if (OperatePage == 0)
+						//{
+						//	page1.KillTimer(1);
+						//}
+						//else if (OperatePage == 1)
+						//{
+						//	page2.KillTimer(1);
+						//}
+						//if (WriteIndex == 0)
+						//	EnableItem();
 				break;
 
-				case ReadMMSI: //MMSI注入
+				case ReadMMSI: //MMSII读取
 					{
 						char *aa = (char *)malloc(20*sizeof(char));
 						unsigned long rev;
@@ -578,42 +772,43 @@ void CAis_NetDlg::getcomm(void)
 							page1.UpdateData(FALSE);
 							page1.KillTimer(1);
 						}
-						else if(OperatePage == 1)
-						{
-							page2.V_Trawl_MMSI = aa;
-							switch (strlen(page2.V_Trawl_MMSI))
-							{
-							case 1:
-								page2.V_Trawl_MMSI.Insert(0,"00000000");
-							break;
+						//else if(OperatePage == 1)
+						//{
+						//	page2.V_Trawl_MMSI = aa;
+						//	switch (strlen(page2.V_Trawl_MMSI))
+						//	{
+						//	case 1:
+						//		page2.V_Trawl_MMSI.Insert(0,"00000000");
+						//	break;
 
-							case 2:
-								page2.V_Trawl_MMSI.Insert(0,"0000000");
-							break;
-							case 3:
-								page2.V_Trawl_MMSI.Insert(0,"000000");
-							break;
-							case 4:
-								page2.V_Trawl_MMSI.Insert(0,"00000");
-							break;
-							case 5:
-								page2.V_Trawl_MMSI.Insert(0,"0000");
-							break;
-							case 6:
-								page2.V_Trawl_MMSI.Insert(0,"000");
-							break;
-							case 7:
-								page2.V_Trawl_MMSI.Insert(0,"00");
-							break;
-							case 8:
-								page2.V_Trawl_MMSI.Insert(0,"0");
-							break;
-							
-							}						
-							page2.UpdateData(FALSE);
-							page2.KillTimer(1);
-						}
+						//	case 2:
+						//		page2.V_Trawl_MMSI.Insert(0,"0000000");
+						//	break;
+						//	case 3:
+						//		page2.V_Trawl_MMSI.Insert(0,"000000");
+						//	break;
+						//	case 4:
+						//		page2.V_Trawl_MMSI.Insert(0,"00000");
+						//	break;
+						//	case 5:
+						//		page2.V_Trawl_MMSI.Insert(0,"0000");
+						//	break;
+						//	case 6:
+						//		page2.V_Trawl_MMSI.Insert(0,"000");
+						//	break;
+						//	case 7:
+						//		page2.V_Trawl_MMSI.Insert(0,"00");
+						//	break;
+						//	case 8:
+						//		page2.V_Trawl_MMSI.Insert(0,"0");
+						//	break;
+						//	
+						//	}						
+						//	page2.UpdateData(FALSE);
+						//	page2.KillTimer(1);
+						//}
 
+						//AllReadFlag =0;
 						EnableItem();
 						icom = 0;
 					}
@@ -630,10 +825,10 @@ void CAis_NetDlg::getcomm(void)
 					{
 						page1.KillTimer(1);
 					}
-					else if (OperatePage == 1)
-					{
-						page2.KillTimer(1);
-					}
+					//else if (OperatePage == 1)
+					//{
+					//	page2.KillTimer(1);
+					//}
 					EnableItem();
 					icom = 0;
 					}
@@ -650,54 +845,176 @@ void CAis_NetDlg::getcomm(void)
 					{
 						page1.KillTimer(1);
 					}
-					else if (OperatePage == 1)
+				/*	else if (OperatePage == 1)
 					{
 						page2.KillTimer(1);
-					}
+					}*/
 					EnableItem();
 
 					icom = 0;
 					}
 				break;
 
-				case KindWrite:
+				case KindWrite: //功能注入
 					{
-					if(rxdata[2] == 0x01)   MessageBox("注入成功!","提示");
-					else if(rxdata[2] == 0x00)   MessageBox("注入失败!","提示");
-					page1.KillTimer(1);
-					EnableItem();
-					icom = 0;
+							if(WriteIndex == 0) //单个注入
+							{
+
+
+								if(rxdata[2] == 0x01)  //注入成功
+								{
+									if (page1.kind == 0)
+										MessageBox("流刺网注入成功!","提示");
+									else if(page1.kind == 1) 
+										MessageBox("帆张网注入成功!","提示");
+								page1.KillTimer(1);
+								EnableItem();
+								}
+								else if(rxdata[2] == 0x00)   // 注入失败
+									MessageBox("注入失败!","提示");
+							}
+							else // 全部注入
+							{					
+								if (IsSize) // 判断是否注入船舶尺寸
+								{
+									if(rxdata[2] == 0x01){
+										WriteIsSuccess++;
+										printf ("功能注入成功");}
+								}
+								else //不注入船舶尺寸
+								{
+									if(rxdata[2] == 0x01)
+									{
+										if (WriteIsSuccess == 3)
+											MessageBox("全部注入成功!","提示");
+										EnableItem();
+									}
+								}
+								
+							}
+						
+						
+					//	if(WriteIndex == 0) //单个注入
+					//	{
+					//		if(rxdata[2] == 0x01)  //注入成功
+					//		{
+					//			if (page1.kind == 0)
+					//				MessageBox("流刺网注入成功!","提示");
+					//			else if(page1.kind == 1) 
+					//				MessageBox("帆张网注入成功!","提示");
+					//		}
+					//		else if(rxdata[2] == 0x00)   // 注入失败
+					//			MessageBox("注入失败!","提示");
+					//	}
+					//	else //全部注入
+					//	{
+					//		if(rxdata[2] == 0x01)
+					//			 WriteIsSuccess++;
+					//	}
+
+					//page1.KillTimer(1);
+					//icom = 0;
 					}
 				break;
 
 				case Interval:  // 发射间隔
 				{
-					
-					if(rxdata[2] == 1)   
+					if(WriteIndex == 0)	// 单个注入
 					{
-						if(page1.V_Drift_Interval == 1)	{MessageBox("间隔30秒，注入成功!","提示"); printf("m_Radio = %d \n",page1.V_Drift_Interval);}
-						else if(page1.V_Drift_Interval == 2)	{MessageBox("间隔1分钟，注入成功!","提示"); printf("m_Radio = %d \n",page1.V_Drift_Interval);}
-						else if(page1.V_Drift_Interval == 3)	{MessageBox("间隔3分钟，注入成功!","提示"); printf("m_Radio = %d \n",page1.V_Drift_Interval);}
+						if(rxdata[2] == 1) 
+						{
+							if(page1.V_Drift_Interval == 1)
+								MessageBox("间隔30秒，注入成功!","提示");
+							else if(page1.V_Drift_Interval == 2)
+								MessageBox("间隔1分钟，注入成功!","提示");
+							else if(page1.V_Drift_Interval == 3)
+								MessageBox("间隔3分钟，注入成功!","提示");
+						}
+						else if(rxdata[2] == 0)  
+							MessageBox("注入失败！","提示");
+
+						EnableItem();
+
 					}
-					else if(rxdata[2] == 0)   MessageBox("注入失败！","提示");
+					else // 全部注入
+					{
+						if(rxdata[2] == 1)
+							WriteIsSuccess++; printf ("间隔注入成功");
+					}	
 
-					page1.UpdateData(FALSE);
+					page1.UpdateData(FALSE);	
 					page1.KillTimer(1);
-
-					EnableItem();
 					icom = 0;
 				}
+				
+
+				//{
+				//	
+				//	if(rxdata[2] == 1)   
+				//	{
+				//		if(WriteIndex == 0)		 //屏蔽全部注入
+				//		{
+				//			if(page1.V_Drift_Interval == 1)	{MessageBox("间隔30秒，注入成功!","提示"); printf("m_Radio = %d \n",page1.V_Drift_Interval);}
+				//			else if(page1.V_Drift_Interval == 2)	{MessageBox("间隔1分钟，注入成功!","提示"); printf("m_Radio = %d \n",page1.V_Drift_Interval);}
+				//			else if(page1.V_Drift_Interval == 3)	{MessageBox("间隔3分钟，注入成功!","提示"); printf("m_Radio = %d \n",page1.V_Drift_Interval);}
+				//			EnableItem();
+				//		}
+				//		else WriteIsSuccess++;
+				//	}
+				//	else if(rxdata[2] == 0)   MessageBox("注入失败！","提示");
+
+				//	page1.UpdateData(FALSE);
+				//	page1.KillTimer(1);
+				//	icom = 0;
+				//}
 					break;
 					
 				case SizeWrite:  //船舶尺寸注入
+				{
+					if (WriteIndex == 0) // 单个注入
 					{
-						if(rxdata[2] == 0x01)   MessageBox("船舶长宽注入成功!","提示");
-						else if(rxdata[2] == 0x00)   MessageBox("船舶长宽注入失败!","提示");
-						page1.UpdateData(FALSE);
-						page1.KillTimer(1);
-						EnableItem();
-						icom = 0;
+						if(rxdata[2] == 0x01)
+							MessageBox("船舶长宽注入成功!","提示");
+						else if(rxdata[2] == 0x00) 
+							MessageBox("船舶长宽注入失败!","提示");
 					}
+					else // 全部注入
+					{
+						if(rxdata[2] == 0x01)
+						{
+							if (WriteIsSuccess == 4)
+								MessageBox("全部注入成功!","提示"); 
+							printf ("船舶尺寸注入成功");
+						}
+					}
+					page1.UpdateData(FALSE);
+					page1.KillTimer(1);
+					EnableItem();
+					icom = 0;
+				}
+					
+					//{
+					//	if(rxdata[2] == 0x01)
+					//	{
+					//		if (WriteIndex == 0)  //屏蔽全部注入
+					//		MessageBox("船舶长宽注入成功!","提示");
+					//		else if (WriteIsSuccess == 4)   //判断是否全部注入成功
+					//		{
+					//			MessageBox("全部注入成功!","提示");
+					//				//WriteIndex = 0;
+					//		}
+					//		//else  MessageBox("全部注入成功!","提示");
+					//	}
+					//	else if(rxdata[2] == 0x00) 
+					//	{
+					//		if (WriteIndex == 0)
+					//		MessageBox("船舶长宽注入失败!","提示");
+					//	}
+					//	page1.UpdateData(FALSE);
+					//	page1.KillTimer(1);
+					//	EnableItem();
+					//	icom = 0;
+					//}
 					break;
 
 				case KeyWrite:  //钥匙注入
@@ -717,9 +1034,9 @@ void CAis_NetDlg::getcomm(void)
 					}
 					break;
 
-				case KeyRead:  //读取钥匙
+				case 0x06:  //读取钥匙
 					{
-						unsigned long b[5];
+						unsigned long b[6];
 						char c,i,j,k=0;
 						unsigned char rxdatatemp;
 						CString strtemp1;CString strtemp2;
@@ -749,7 +1066,7 @@ void CAis_NetDlg::getcomm(void)
 							}
 						}
 						page3.UpdateData(FALSE);
-
+						page3.KillTimer(1);
 						GetDlgItem(IDC_OpenCom)->EnableWindow(TRUE);
 						page3.GetDlgItem(IDC_EDIT_ShipName)->EnableWindow(TRUE);
 						page3.GetDlgItem(IDC_ShipNameWrite)->EnableWindow(TRUE);
@@ -780,6 +1097,7 @@ void CAis_NetDlg::getcomm(void)
 		}
 	}
 }
+
 
 
 void CAis_NetDlg::OnTimer(UINT_PTR nIDEvent)
@@ -833,7 +1151,9 @@ void CAis_NetDlg::OnTimer(UINT_PTR nIDEvent)
 	CDialogEx::OnTimer(nIDEvent);
 	
 }
-void CAis_NetDlg::ItemInit(void)
+
+
+void CAis_NetDlg::ItemInit(void) // 控件状态初始化
 {
 	page1.GetDlgItem(IDC_EDIT_ShipName)->EnableWindow(FALSE);
 	page1.GetDlgItem(IDC_EDIT_NetNum)->EnableWindow(FALSE);
@@ -858,27 +1178,32 @@ void CAis_NetDlg::ItemInit(void)
 	page1.GetDlgItem(IDC_KIND2)->EnableWindow(FALSE);
 	page1.GetDlgItem(IDC_KIND_WRITE)->EnableWindow(FALSE);
 
+	//全部注入读取
+	page1.GetDlgItem(IDC_ALLWRITE)->EnableWindow(FALSE);
+	page1.GetDlgItem(IDC_ALLREAD)->EnableWindow(FALSE);
 
-	page2.GetDlgItem(IDC_EDIT_ShipName)->EnableWindow(FALSE);
-	page2.GetDlgItem(IDC_EDIT_NetNum)->EnableWindow(FALSE);
-	page2.GetDlgItem(IDC_ShipNameWrite)->EnableWindow(FALSE);
-	page2.GetDlgItem(IDC_ShipNameRead)->EnableWindow(FALSE);
-	page2.GetDlgItem(IDC_EDIT_MMSI)->EnableWindow(FALSE);
-	page2.GetDlgItem(IDC_MMSIWrite)->EnableWindow(FALSE);
-	page2.GetDlgItem(IDC_MMSIRead)->EnableWindow(FALSE);
-	page2.GetDlgItem(IDC_EDIT_Code)->EnableWindow(FALSE);
-	page2.GetDlgItem(IDC_Encryp)->EnableWindow(FALSE);
-	page2.GetDlgItem(IDC_Encode)->EnableWindow(FALSE);
-	page2.GetDlgItem(IDC_LOCAT_WRITE)->EnableWindow(FALSE);
-	page2.GetDlgItem(IDC_LOCAT_WIDTH)->EnableWindow(FALSE);
-	page2.GetDlgItem(IDC_LOCAT_LENGTH)->EnableWindow(FALSE);
+	//page2.GetDlgItem(IDC_EDIT_ShipName)->EnableWindow(FALSE);
+	//page2.GetDlgItem(IDC_EDIT_NetNum)->EnableWindow(FALSE);
+	//page2.GetDlgItem(IDC_ShipNameWrite)->EnableWindow(FALSE);
+	//page2.GetDlgItem(IDC_ShipNameRead)->EnableWindow(FALSE);
+	//page2.GetDlgItem(IDC_EDIT_MMSI)->EnableWindow(FALSE);
+	//page2.GetDlgItem(IDC_MMSIWrite)->EnableWindow(FALSE);
+	//page2.GetDlgItem(IDC_MMSIRead)->EnableWindow(FALSE);
+	//page2.GetDlgItem(IDC_EDIT_Code)->EnableWindow(FALSE);
+	//page2.GetDlgItem(IDC_Encryp)->EnableWindow(FALSE);
+	//page2.GetDlgItem(IDC_Encode)->EnableWindow(FALSE);
+	//page2.GetDlgItem(IDC_LOCAT_WRITE)->EnableWindow(FALSE);
+	//page2.GetDlgItem(IDC_LOCAT_WIDTH)->EnableWindow(FALSE);
+	//page2.GetDlgItem(IDC_LOCAT_LENGTH)->EnableWindow(FALSE);
 
 	page3.GetDlgItem(IDC_EDIT_ShipName)->EnableWindow(FALSE);
 	page3.GetDlgItem(IDC_ShipNameWrite)->EnableWindow(FALSE);
 	page3.GetDlgItem(IDC_ShipNameRead)->EnableWindow(FALSE);
+
+
 }
 
-void CAis_NetDlg::EnableItem(void)
+void CAis_NetDlg::EnableItem(void)  //启用控件
 {
 		GetDlgItem(IDC_OpenCom)->EnableWindow(TRUE);
 		page1.GetDlgItem(IDC_ShipNameRead)->EnableWindow(TRUE);
@@ -897,29 +1222,37 @@ void CAis_NetDlg::EnableItem(void)
 		page1.GetDlgItem(IDC_KIND2)->EnableWindow(TRUE);
 		page1.GetDlgItem(IDC_KIND_WRITE)->EnableWindow(TRUE);
 
-		page2.GetDlgItem(IDC_ShipNameRead)->EnableWindow(TRUE);
-		page2.GetDlgItem(IDC_MMSIRead)->EnableWindow(TRUE);
-		page2.GetDlgItem(IDC_EDIT_ShipName)->EnableWindow(TRUE);
-		page2.GetDlgItem(IDC_EDIT_NetNum)->EnableWindow(TRUE);
-		page2.GetDlgItem(IDC_EDIT_MMSI)->EnableWindow(TRUE);
-		page2.GetDlgItem(IDC_EDIT_Code)->EnableWindow(TRUE);
-		page2.GetDlgItem(IDC_LOCAT_WRITE)->EnableWindow(TRUE);	
-		page2.GetDlgItem(IDC_LOCAT_WIDTH)->EnableWindow(TRUE);
-		page2.GetDlgItem(IDC_LOCAT_LENGTH)->EnableWindow(TRUE);		
+		page1.GetDlgItem(IDC_ALLREAD)->EnableWindow(TRUE);
+
+		//page1.GetDlgItem(IDC_ALLWRITE)->EnableWindow(TRUE);
+
+		//page2.GetDlgItem(IDC_ShipNameRead)->EnableWindow(TRUE);
+		//page2.GetDlgItem(IDC_MMSIRead)->EnableWindow(TRUE);
+		//page2.GetDlgItem(IDC_EDIT_ShipName)->EnableWindow(TRUE);
+		//page2.GetDlgItem(IDC_EDIT_NetNum)->EnableWindow(TRUE);
+		//page2.GetDlgItem(IDC_EDIT_MMSI)->EnableWindow(TRUE);
+		//page2.GetDlgItem(IDC_EDIT_Code)->EnableWindow(TRUE);
+		//page2.GetDlgItem(IDC_LOCAT_WRITE)->EnableWindow(TRUE);	
+		//page2.GetDlgItem(IDC_LOCAT_WIDTH)->EnableWindow(TRUE);
+		//page2.GetDlgItem(IDC_LOCAT_LENGTH)->EnableWindow(TRUE);		
 
 		page3.GetDlgItem(IDC_EDIT_ShipName)->EnableWindow(TRUE);
 		page3.GetDlgItem(IDC_ShipNameRead)->EnableWindow(TRUE);
 
-		if(!page1.V_Drift_shipName.IsEmpty() && !page1.V_Drift_NetNum.IsEmpty())
+		if(!page1.V_Drift_shipName.IsEmpty() && !page1.V_Drift_NetNum.IsEmpty())  
+		{
 			page1.GetDlgItem(IDC_ShipNameWrite)->EnableWindow(TRUE);
-		else 
-			page1.GetDlgItem(IDC_ShipNameWrite)->EnableWindow(FALSE);
+			if((page1.V_Drift_MMSI.GetLength()) == 9)
+					page1.GetDlgItem(IDC_ALLWRITE)->EnableWindow(TRUE);
+		}
+		//else 
+		//	page1.GetDlgItem(IDC_ShipNameWrite)->EnableWindow(FALSE);
 		
 
 		if((page1.V_Drift_MMSI.GetLength()) == 9)
 			page1.GetDlgItem(IDC_MMSIWrite)->EnableWindow(TRUE);
-		else 
-			page1.GetDlgItem(IDC_MMSIWrite)->EnableWindow(FALSE);
+		//else 
+		//	page1.GetDlgItem(IDC_MMSIWrite)->EnableWindow(FALSE);
 
 		
 
@@ -928,11 +1261,11 @@ void CAis_NetDlg::EnableItem(void)
 			page1.GetDlgItem(IDC_Encryp)->EnableWindow(TRUE);
 			page1.GetDlgItem(IDC_Encode)->EnableWindow(TRUE);
 		}
-		else 
-		{
-			page1.GetDlgItem(IDC_Encryp)->EnableWindow(FALSE);
-			page1.GetDlgItem(IDC_Encode)->EnableWindow(FALSE);
-		}
+		//else 
+		//{
+		//	page1.GetDlgItem(IDC_Encryp)->EnableWindow(FALSE);
+		//	page1.GetDlgItem(IDC_Encode)->EnableWindow(FALSE);
+		//}
 
 		if (IsSize)
 		{
@@ -940,41 +1273,41 @@ void CAis_NetDlg::EnableItem(void)
 			page1.GetDlgItem(IDC_SIZE_LONG)->EnableWindow(TRUE);
 			page1.GetDlgItem(IDC_SIZE_WIDTH)->EnableWindow(TRUE);
 		}
-		else
-		{
-			page1.GetDlgItem(IDC_SIZE_WRITE)->EnableWindow(FALSE);
-			page1.GetDlgItem(IDC_SIZE_LONG)->EnableWindow(FALSE);
-			page1.GetDlgItem(IDC_SIZE_WIDTH)->EnableWindow(FALSE);		
-		}
+		//else
+		//{
+		//	page1.GetDlgItem(IDC_SIZE_WRITE)->EnableWindow(FALSE);
+		//	page1.GetDlgItem(IDC_SIZE_LONG)->EnableWindow(FALSE);
+		//	page1.GetDlgItem(IDC_SIZE_WIDTH)->EnableWindow(FALSE);		
+		//}
 
 		if(!page2.V_Trawl_ShipName.IsEmpty()&&!page2.V_Trawl_NetNum.IsEmpty())
 		{
 			page2.GetDlgItem(IDC_ShipNameWrite)->EnableWindow(TRUE);
 		}
-		else
-		{
-			page2.GetDlgItem(IDC_ShipNameWrite)->EnableWindow(FALSE);
-		}
+		//else
+		//{
+		//	page2.GetDlgItem(IDC_ShipNameWrite)->EnableWindow(FALSE);
+		//}
 
 		if (!page2.V_Trawl_MMSI.IsEmpty())
 		{
 			page2.GetDlgItem(IDC_MMSIWrite)->EnableWindow(TRUE);
 		}
-		else
-		{
-			page2.GetDlgItem(IDC_MMSIWrite)->EnableWindow(FALSE);
-		}
+		//else
+		//{
+		//	page2.GetDlgItem(IDC_MMSIWrite)->EnableWindow(FALSE);
+		//}
 
 		if (!page2.V_Trawl_code.IsEmpty())
 		{
 			page2.GetDlgItem(IDC_Encryp)->EnableWindow(TRUE);
 			page2.GetDlgItem(IDC_Encode)->EnableWindow(TRUE);
 		}
-		else
-		{
-			page2.GetDlgItem(IDC_Encryp)->EnableWindow(FALSE);
-			page2.GetDlgItem(IDC_Encode)->EnableWindow(FALSE);		
-		}
+		//else
+		//{
+		//	page2.GetDlgItem(IDC_Encryp)->EnableWindow(FALSE);
+		//	page2.GetDlgItem(IDC_Encode)->EnableWindow(FALSE);		
+		//}
 }
 
 
@@ -1005,7 +1338,7 @@ void CAis_NetDlg::OnSelchangeTab1(NMHDR *pNMHDR, LRESULT *pResult)
 {
 	// TODO: 在此添加控件通知处理程序代码
 	int CurSel = m_tabCtrl.GetCurSel();
-	OperatePage = CurSel;
+	//OperatePage = CurSel;
     switch(CurSel)
     {
     case 0:
@@ -1015,8 +1348,8 @@ void CAis_NetDlg::OnSelchangeTab1(NMHDR *pNMHDR, LRESULT *pResult)
         break;
     case 1:
         page1.ShowWindow(false);
-        page2.ShowWindow(true);
-		page3.ShowWindow(false);
+        page2.ShowWindow(false);
+		page3.ShowWindow(true);
         break;
 	case 2:
 		page1.ShowWindow(false);

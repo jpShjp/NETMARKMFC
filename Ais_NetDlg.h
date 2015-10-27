@@ -6,6 +6,7 @@
 #include "DriftNet.h"
 #include "trawl.h"
 #include "key_info.h"
+#include "afxwin.h"
 
 // CAis_NetDlg ¶Ô»°¿ò
 class CAis_NetDlg : public CDialogEx
@@ -47,4 +48,8 @@ public:
 	DriftNet page1;
 	Trawl page2;	
 	KEY_INFO page3;
+	HCURSOR m_hCursor;
+	afx_msg BOOL OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message);
+	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
+	CStatic m_Picture;
 };

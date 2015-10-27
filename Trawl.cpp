@@ -10,7 +10,7 @@
 extern CWnd * pMainDlg;
 extern char icom;
 extern int commport;
-extern int IsSize;
+extern char IsSize;
 
 
 void Trawl::DisablePage2Item(void)

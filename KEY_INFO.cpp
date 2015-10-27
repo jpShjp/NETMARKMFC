@@ -11,6 +11,7 @@
 extern char icom;
 extern int commport;
 extern CWnd * pMainDlg;
+static CFont font;
 IMPLEMENT_DYNAMIC(KEY_INFO, CDialogEx)
 
 KEY_INFO::KEY_INFO(CWnd* pParent /*=NULL*/)
@@ -37,6 +38,7 @@ BEGIN_MESSAGE_MAP(KEY_INFO, CDialogEx)
 	ON_BN_CLICKED(IDC_ShipNameWrite, &KEY_INFO::OnClickedShipNameWrite)
 	ON_BN_CLICKED(IDC_ShipNameRead, &KEY_INFO::OnClickedShipNameRead)
 	ON_WM_TIMER()
+	ON_WM_CTLCOLOR()
 END_MESSAGE_MAP()
 
 
@@ -52,7 +54,7 @@ void KEY_INFO::OnChangeEditShipName()
 
 	// TODO:  在此添加控件通知处理程序代码
 	CEdit* pEdit = (CEdit*)GetDlgItem(IDC_EDIT_ShipName);
-	pEdit->LimitText(17);
+	pEdit->LimitText(18);
 	UpdateData(TRUE);
 
 	if(!V_Key_ShipName.IsEmpty())
@@ -66,7 +68,7 @@ void KEY_INFO::OnClickedShipNameWrite()
 	// TODO: 在此添加控件通知处理程序代码
 	char L1,L2;
 	char *ch1=NULL;char *ch2=NULL;char *ch=NULL; char i,j,k;
-	unsigned long b[5];
+	unsigned long b[6];
 	icom = 0;
 	for(i=0;i<5;i++) b[i]=0;
 
@@ -172,4 +174,27 @@ BOOL KEY_INFO::PreTranslateMessage(MSG* pMsg)
 
 
     return CDialog::PreTranslateMessage(pMsg);
+}
+
+HBRUSH KEY_INFO::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
+{
+	HBRUSH hbr = CDialogEx::OnCtlColor(pDC, pWnd, nCtlColor);
+
+	//if(pWnd->GetDlgCtrlID() == IDC_STATIC1)
+	//{
+	//	if(IsConnect == 0)	
+	//		pDC->SetTextColor(RGB(255,0,0)); //红色
+	//	else if(IsConnect == 1)	
+	//		pDC->SetTextColor(RGB(0,255,0)); //绿色
+	//	else if(IsConnect == 2)	
+			//pDC->SetTextColor(RGB(255,100,0)); //黄色
+
+	//	pDC->SelectObject(&My_StaticFont);  // 设置字体
+	//	pDC->SetBkColor(RGB(237,233,224));  //设置背景色
+	//}
+
+	// TODO:  在此更改 DC 的任何特性
+
+	// TODO:  如果默认的不是所需画笔，则返回另一个画笔
+	return hbr;
 }
