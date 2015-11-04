@@ -1,4 +1,5 @@
 #pragma once
+#include "afxwin.h"
 
 
 // Trawl ¶Ô»°¿ò
@@ -35,7 +36,7 @@ public:
 	afx_msg void OnChangeLocatWidth();
 	afx_msg void OnClickedShipnameread();
 
-	void DisablePage2Item(void);	
+	void DisableTrawlItem(void);	
 	CString V_Trawl_code;
 	CString V_Trawl_MMSI;
 	CString V_Trawl_NetNum;
@@ -43,4 +44,7 @@ public:
 	CString V_Trawl_Length;
 	CString V_Trawl_Width;
 	BOOL PreTranslateMessage(MSG *pMsg);
+	CFont my_font;
+	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
+	void ShowBalloonTip(LPWSTR strTitile,LPWSTR strtext,UINT uStyle,int ID);
 };

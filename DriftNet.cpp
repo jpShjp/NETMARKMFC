@@ -14,9 +14,8 @@ extern char icom;
 extern int commport;
 extern char IsSize;   // 是否写入船舶尺寸
 
-char WriteIndex = 0; //全部注入标记
 char AllReadFlag =0; //全部读取标记
-char WriteIsSuccess = 0; //注入是否成功标记
+char AllWrite = 0; //注入是否成功标记
 //char IsCode = 0;
 
 // 船名注入
@@ -141,6 +140,7 @@ void DriftNet::MMSIWrite(void)
 	SetTimer (1,2000,NULL); 
 
 	DisablePage1Item();
+	printf ("MMSIWRITE\n");
 }
 
 // MMSI读取
@@ -158,6 +158,8 @@ void DriftNet::MMSIRead(void)
 	SetTimer (1,2000,NULL); 
 	
 	DisablePage1Item();
+	printf ("MMSIWrite\n");
+	//system ("pause");
 }
 
 // 加密
@@ -296,6 +298,7 @@ void DriftNet::kindWrite(void)
 	SioPuts(commport,(LPSTR)(m_Array), 18);
 	SetTimer(1, 2000, NULL); //定时2秒
 	DisablePage1Item();
+	printf ("功能注入\n");
 }
 
 // 尺寸注入
@@ -330,7 +333,7 @@ void DriftNet::sizeWrite(void)
 	}
 
 	SioPuts(commport,(LPSTR)(m_Array), 18);
-	SetTimer (1,2000,NULL); 
+	SetTimer (1,3000,NULL); 
 
 	DisablePage1Item();
 }
@@ -549,8 +552,11 @@ void DriftNet::OnTimer(UINT_PTR nIDEvent)
 	switch (nIDEvent)
 	{
 	case 1:  // 读取注入未能成功后更新控件状态
+		printf ("注入失败\n");
 		KillTimer(1);
 		AllReadFlag = 0;
+		AllWrite = 0;
+		icom = 0;
 		pMainDlg->GetDlgItem(IDC_OpenCom)->EnableWindow(TRUE);
 		GetDlgItem(IDC_ShipNameRead)->EnableWindow(TRUE);
 		GetDlgItem(IDC_MMSIRead)->EnableWindow(TRUE);
@@ -569,6 +575,7 @@ void DriftNet::OnTimer(UINT_PTR nIDEvent)
 		GetDlgItem(IDC_KIND1)->EnableWindow(TRUE);
 		GetDlgItem(IDC_KIND2)->EnableWindow(TRUE);
 		GetDlgItem(IDC_KIND_WRITE)->EnableWindow(TRUE);
+		GetDlgItem(IDC_ALLREAD)->EnableWindow(TRUE);
 
 		if(!V_Drift_shipName.IsEmpty() && !V_Drift_NetNum.IsEmpty()) //判断船名和网号是否为空
 		{
@@ -611,7 +618,7 @@ void DriftNet::OnTimer(UINT_PTR nIDEvent)
 
 	case 2: // 全部注入
 		{
-			switch (WriteIndex++)
+			switch (AllWrite++)
 			{
 				case 1: //船名注入
 					{
@@ -640,7 +647,7 @@ void DriftNet::OnTimer(UINT_PTR nIDEvent)
 				case 6: //
 					{
 						KillTimer(2);
-						WriteIndex = 0;
+						AllWrite = 0;
 					}
 				break;
 			}
@@ -655,7 +662,7 @@ void DriftNet::OnTimer(UINT_PTR nIDEvent)
 				{
 				KillTimer(3);
 				shipNameRead();
-				SetTimer(3,800,NULL);  //设置读取间隔800ms
+				SetTimer(3,1000,NULL);  //设置读取间隔800ms
 				}
 				break;
 			case 2: //MMSI读取
@@ -845,9 +852,10 @@ void DriftNet::OnBnClickedAllwrite()
 {
 	// TODO: 在此添加控件通知处理程序代码
 
-	WriteIndex = 0;
-	WriteIsSuccess = 0;
-	SetTimer (2,1,NULL);
+	
+	AllWrite = 1;
+	shipNameWrite();
+	//SetTimer (2,1,NULL);
 }
 
 
@@ -858,6 +866,7 @@ void DriftNet::OnBnClickedAllread()
 	V_Drift_NetNum.Empty();
 	V_Drift_MMSI.Empty();
 	UpdateData(FALSE);
-	AllReadFlag = 0;
-	SetTimer (3,1,NULL);
+	AllReadFlag = 1;
+	//SetTimer (3,1,NULL);
+	shipNameRead();
 }
