@@ -54,7 +54,7 @@ void KEY_INFO::OnChangeEditShipName()
 
 	// TODO:  在此添加控件通知处理程序代码
 	CEdit* pEdit = (CEdit*)GetDlgItem(IDC_EDIT_ShipName);
-	pEdit->LimitText(18);
+	pEdit->LimitText(17);
 	UpdateData(TRUE);
 
 	if(!V_Key_ShipName.IsEmpty())
@@ -155,7 +155,8 @@ void KEY_INFO::OnTimer(UINT_PTR nIDEvent)
 			KillTimer(1);
 			pMainDlg->GetDlgItem(IDC_OpenCom)->EnableWindow(TRUE);
 			GetDlgItem(IDC_EDIT_ShipName)->EnableWindow(TRUE);
-			GetDlgItem(IDC_ShipNameWrite)->EnableWindow(TRUE);
+			if (!(V_Key_ShipName.IsEmpty()))
+				GetDlgItem(IDC_ShipNameWrite)->EnableWindow(TRUE);
 			GetDlgItem(IDC_ShipNameRead)->EnableWindow(TRUE);
 		break;
 	}

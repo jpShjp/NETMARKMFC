@@ -8,6 +8,9 @@
 #include "key_info.h"
 #include "afxwin.h"
 
+#define MY_MESSAGEBOX WM_USER+0x001
+
+void ThreadGetCom(); //获取串口信息
 // CAis_NetDlg 对话框
 class CAis_NetDlg : public CDialogEx
 {
@@ -31,12 +34,14 @@ protected:
 	afx_msg void OnPaint();
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
+
+	HANDLE hThread; //线程句柄
+	DWORD ThreadID;  //线程ID
 public:
 	afx_msg void OnBnClickedOpenCom();
 	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
 	afx_msg void OnSelchangeTab1(NMHDR *pNMHDR, LRESULT *pResult);
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
-	void getcomm(void);
 	void EnableItem(void);
 	void PortSet(void);
 	void ItemInit(void);
@@ -52,4 +57,6 @@ public:
 	afx_msg BOOL OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message);
 	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
 	CStatic m_Picture;
+protected:
+	afx_msg LRESULT OnMyMessagebox(WPARAM wParam, LPARAM lParam);
 };

@@ -333,8 +333,21 @@ void DriftNet::sizeWrite(void)
 	}
 
 	SioPuts(commport,(LPSTR)(m_Array), 18);
-	SetTimer (1,3000,NULL); 
+	SetTimer (1,2000,NULL); 
 
+	DisablePage1Item();
+}
+
+// 尺寸读取
+void DriftNet::sizeRead(void)
+{
+	icom = 0;
+	BYTE m_Array[18];
+	memset(m_Array,0,sizeof(m_Array));
+	m_Array[0] = 0x24; 
+	m_Array[1] = 0x2C;
+	SioPuts(commport,(LPSTR)(m_Array), 18);
+	SetTimer (1,2000,NULL); 
 	DisablePage1Item();
 }
 
@@ -363,6 +376,7 @@ void DriftNet::DisablePage1Item(void)
 	GetDlgItem(IDC_SIZE_LONG)->EnableWindow(FALSE);
 	GetDlgItem(IDC_SIZE_WIDTH)->EnableWindow(FALSE);
 	GetDlgItem(IDC_SIZE_WRITE)->EnableWindow(FALSE);
+	GetDlgItem(IDC_SIZE_READ)->EnableWindow(FALSE);
 	GetDlgItem(IDC_KIND1)->EnableWindow(FALSE);
 	GetDlgItem(IDC_KIND2)->EnableWindow(FALSE);
 	GetDlgItem(IDC_KIND_WRITE)->EnableWindow(FALSE);
@@ -438,6 +452,7 @@ BEGIN_MESSAGE_MAP(DriftNet, CDialog)
 	ON_BN_CLICKED(IDC_KIND_WRITE, &DriftNet::OnClickedKindWrite)
 	ON_BN_CLICKED(IDC_ALLWRITE, &DriftNet::OnBnClickedAllwrite)
 	ON_BN_CLICKED(IDC_ALLREAD, &DriftNet::OnBnClickedAllread)
+	ON_BN_CLICKED(IDC_SIZE_READ, &DriftNet::OnBnClickedSizeRead)
 END_MESSAGE_MAP()
 
 //
@@ -546,6 +561,12 @@ void DriftNet::OnClickedSizeWrite()
 	sizeWrite();
 }
 
+void DriftNet::OnBnClickedSizeRead()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	sizeRead();
+}
+
 void DriftNet::OnTimer(UINT_PTR nIDEvent)
 {
 	// TODO: 在此添加消息处理程序代码和/或调用默认值
@@ -571,7 +592,6 @@ void DriftNet::OnTimer(UINT_PTR nIDEvent)
 		GetDlgItem(IDC_IntervalWrite)->EnableWindow(TRUE);
 		GetDlgItem(IDC_SIZE_YES)->EnableWindow(TRUE);
 		GetDlgItem(IDC_SIZE_NO)->EnableWindow(TRUE);
-		GetDlgItem(IDC_SIZE_WRITE)->EnableWindow(TRUE);
 		GetDlgItem(IDC_KIND1)->EnableWindow(TRUE);
 		GetDlgItem(IDC_KIND2)->EnableWindow(TRUE);
 		GetDlgItem(IDC_KIND_WRITE)->EnableWindow(TRUE);
@@ -581,76 +601,32 @@ void DriftNet::OnTimer(UINT_PTR nIDEvent)
 		{
 			GetDlgItem(IDC_ShipNameWrite)->EnableWindow(TRUE);
 			if((V_Drift_MMSI.GetLength()) == 9)                  //判断MMSI是否为空
-					GetDlgItem(IDC_ALLWRITE)->EnableWindow(TRUE);
+				GetDlgItem(IDC_ALLWRITE)->EnableWindow(TRUE);
 		}
-		//else 
-		//	GetDlgItem(IDC_ShipNameWrite)->EnableWindow(FALSE);
 		
 
 		if((V_Drift_MMSI.GetLength()) == 9)
 			GetDlgItem(IDC_MMSIWrite)->EnableWindow(TRUE);
-		//else 
-		//	GetDlgItem(IDC_MMSIWrite)->EnableWindow(FALSE);
 
 		if((V_Drift_Code.GetLength()) == 6)
 		{
 			GetDlgItem(IDC_Encryp)->EnableWindow(TRUE);
 			GetDlgItem(IDC_Encode)->EnableWindow(TRUE);
 		}
-		//else 
-		//{
-		//	GetDlgItem(IDC_Encryp)->EnableWindow(FALSE);
-		//	GetDlgItem(IDC_Encode)->EnableWindow(FALSE);
-		//}
 		if (IsSize)
 		{
 			GetDlgItem(IDC_SIZE_WRITE)->EnableWindow(TRUE);
 			GetDlgItem(IDC_SIZE_LONG)->EnableWindow(TRUE);
 			GetDlgItem(IDC_SIZE_WIDTH)->EnableWindow(TRUE);
+			GetDlgItem(IDC_SIZE_READ)->EnableWindow(TRUE);
 		}
-		//else 
-		//{
-		//	GetDlgItem(IDC_SIZE_WRITE)->EnableWindow(FALSE);
-		//	GetDlgItem(IDC_SIZE_LONG)->EnableWindow(FALSE);
-		//	GetDlgItem(IDC_SIZE_WIDTH)->EnableWindow(FALSE);
-		//}
+
 		break;
 
 	case 2: // 全部注入
 		{
-			switch (AllWrite++)
-			{
-				case 1: //船名注入
-					{
-						KillTimer(2);
-						SetTimer(2,800,NULL);  // 每个注入的间隔为800ms
-						shipNameWrite();
-					}
-					break;
-				case 2:  //MMSI注入
-					{
-							MMSIWrite();
-					}
-					break;
-				case 3: //间隔注入
-					IntervalWrite();
-					break;
-				case 4: //功能注入
-					kindWrite();	
-					break;
-				case 5://船舶尺寸注入
-					{
-						if (IsSize == 1)
-							sizeWrite();
-					}
-					break;
-				case 6: //
-					{
-						KillTimer(2);
-						AllWrite = 0;
-					}
-				break;
-			}
+			KillTimer(2);
+			AllWrite = 0;
 		}
 		break;
 
@@ -692,7 +668,7 @@ void DriftNet::OnChangeEditShipname()
 
 	// TODO:  在此添加控件通知处理程序代码
 	CEdit* pEdit = (CEdit*)GetDlgItem(IDC_EDIT_ShipName);
-	pEdit->LimitText(18);
+	pEdit->LimitText(17);
 	UpdateData(TRUE);
 	//printf ("length = %d",V_Drift_shipName.GetLength());
 	//printf ("find = %d",V_Drift_shipName.Find("-"));
@@ -818,9 +794,13 @@ void DriftNet::OnClickedSizeNo()
 {
 	// TODO: 在此添加控件通知处理程序代码
 	IsSize = 0;
+	V_Size_Length = "";
+	V_Size_Width = "";
+	UpdateData(FALSE);
 	GetDlgItem(IDC_SIZE_WRITE)->EnableWindow(FALSE);
 	GetDlgItem(IDC_SIZE_LONG)->EnableWindow(FALSE);
 	GetDlgItem(IDC_SIZE_WIDTH)->EnableWindow(FALSE);
+	GetDlgItem(IDC_SIZE_READ)->EnableWindow(FALSE);
 }
 
 void DriftNet::OnClickedSizeYes()
@@ -830,6 +810,7 @@ void DriftNet::OnClickedSizeYes()
 	GetDlgItem(IDC_SIZE_WRITE)->EnableWindow(TRUE);
 	GetDlgItem(IDC_SIZE_LONG)->EnableWindow(TRUE);
 	GetDlgItem(IDC_SIZE_WIDTH)->EnableWindow(TRUE);
+	GetDlgItem(IDC_SIZE_READ)->EnableWindow(TRUE);
 }
 
 
@@ -841,8 +822,7 @@ BOOL DriftNet::PreTranslateMessage(MSG* pMsg)
         {
             return 1;
         }
-    }
-
+	}
 
     return CDialog::PreTranslateMessage(pMsg);
 }
@@ -855,7 +835,7 @@ void DriftNet::OnBnClickedAllwrite()
 	
 	AllWrite = 1;
 	shipNameWrite();
-	//SetTimer (2,1,NULL);
+	SetTimer (2,5000,NULL);
 }
 
 
@@ -865,8 +845,12 @@ void DriftNet::OnBnClickedAllread()
 	V_Drift_shipName.Empty();
 	V_Drift_NetNum.Empty();
 	V_Drift_MMSI.Empty();
+	V_Size_Length.Empty();
+	V_Size_Width.Empty();
 	UpdateData(FALSE);
 	AllReadFlag = 1;
 	//SetTimer (3,1,NULL);
 	shipNameRead();
 }
+
+

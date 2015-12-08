@@ -47,4 +47,5 @@ public:
 	CFont my_font;
 	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
 	void ShowBalloonTip(LPWSTR strTitile,LPWSTR strtext,UINT uStyle,int ID);
+	afx_msg void OnBnClickedLocatRead();
 };

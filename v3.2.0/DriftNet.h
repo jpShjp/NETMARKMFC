@@ -73,4 +73,6 @@ public:
 	void sizeWrite(void);
 	afx_msg void OnBnClickedAllwrite();
 	afx_msg void OnBnClickedAllread();
+	afx_msg void OnBnClickedSizeRead();
+	void sizeRead(void);
 };

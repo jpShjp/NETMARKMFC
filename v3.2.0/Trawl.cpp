@@ -35,6 +35,7 @@ void Trawl::DisableTrawlItem(void)
 	GetDlgItem(IDC_Encryp)->EnableWindow(FALSE);
 	GetDlgItem(IDC_Encode)->EnableWindow(FALSE);
 	GetDlgItem(IDC_LOCAT_WRITE)->EnableWindow(FALSE);
+	GetDlgItem(IDC_LOCAT_READ)->EnableWindow(FALSE);
 
 	GetDlgItem(IDC_EDIT_ShipName)->EnableWindow(FALSE);
 	GetDlgItem(IDC_EDIT_NetNum)->EnableWindow(FALSE);
@@ -75,7 +76,7 @@ void Trawl::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_EDIT_NetNum, V_Trawl_NetNum);
 	DDV_MaxChars(pDX, V_Trawl_NetNum, 2);
 	DDX_Text(pDX, IDC_EDIT_ShipName, V_Trawl_ShipName);
-	DDV_MaxChars(pDX, V_Trawl_ShipName, 18);
+	DDV_MaxChars(pDX, V_Trawl_ShipName, 17);
 	DDX_Text(pDX, IDC_LOCAT_LENGTH, V_Trawl_Length);
 	DDX_Text(pDX, IDC_LOCAT_WIDTH, V_Trawl_Width);
 }
@@ -97,6 +98,7 @@ BEGIN_MESSAGE_MAP(Trawl, CDialogEx)
 	ON_BN_CLICKED(IDC_ShipNameRead, &Trawl::OnClickedShipnameread)
 	ON_WM_TIMER()
 	ON_WM_CTLCOLOR()
+	ON_BN_CLICKED(IDC_LOCAT_READ, &Trawl::OnBnClickedLocatRead)
 END_MESSAGE_MAP()
 
 
@@ -112,7 +114,7 @@ void Trawl::OnChangeEditShipname()
 
 	// TODO:  在此添加控件通知处理程序代码
 	CEdit* pEdit = (CEdit*)GetDlgItem(IDC_EDIT_ShipName);
-	pEdit->LimitText(18);
+	pEdit->LimitText(17);
 	UpdateData(TRUE);
 	if(!V_Trawl_ShipName.IsEmpty() && !V_Trawl_NetNum.IsEmpty()) 
 		GetDlgItem(IDC_ShipNameWrite)->EnableWindow(TRUE);
@@ -433,24 +435,31 @@ void Trawl::OnClickedLocatWrite()
 
 		BYTE m_Array[18];
 		memset(m_Array,0,sizeof(m_Array));
-		m_Array[0] = 0x24; 
+		m_Array[0] = 0x24;
 		m_Array[1] = 0x31;
 		boatlength = atol(V_Trawl_Length);
-		boatwidth = atol(V_Trawl_Width);  
-		//m_Array[2] =(unsigned char) boatlength;
-		//m_Array[3] =(unsigned char)boatwidth;
+		boatwidth = atol(V_Trawl_Width);
 
-		m_Array[2] = (boatlength >> 8);
-		m_Array[3] = (BYTE)(boatlength);
+		//横偏移量 m_Array[2],m_Array[3]
+		m_Array[2] = (boatlength >> 8); //高位
+		m_Array[3] = (boatlength);//低位
+		
+		// 正负：m_Array[4]
+		//纵偏移量 m_Array[5],m_Array[6]
 		if (boatwidth >0)
 			m_Array[4] = 1;
-		else {m_Array[4] = 0; }
+		else {m_Array[4] = 0;}
 		boatwidth = abs(boatwidth);
 
-		m_Array[5] = boatwidth;
+		m_Array[5] = boatwidth>>8;
+		m_Array[6] = boatwidth;
 		printf ("length = %d\n",boatlength);
 		printf ("width = %d\n",boatwidth);
+		printf ("m_Array[2] = %d\n",m_Array[2]);
+		printf ("m_Array[3] = %d\n",m_Array[3]);
 		printf ("m_Array[4] = %d\n",m_Array[4]);
+		printf ("m_Array[5] = %d\n",m_Array[5]);
+		printf ("m_Array[6] = %d\n",m_Array[6]);
 		//if(boatlength > 1021)
 		//{
 		//	m_Array[2] = 0x03; 
@@ -469,6 +478,21 @@ void Trawl::OnClickedLocatWrite()
 	}
 }
 
+void Trawl::OnBnClickedLocatRead()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	icom = 0;
+	
+	BYTE m_Array[18]; 
+	memset(m_Array,0,sizeof(m_Array));
+	m_Array[0] = 0x24;
+	m_Array[1] = 0x32;
+	SioPuts(commport,(LPSTR)(m_Array), 18);
+	SetTimer (1,2000,NULL); 
+	DisableTrawlItem();
+}
+
+
 
 void Trawl::OnChangeLocatLength()
 {
@@ -479,22 +503,22 @@ void Trawl::OnChangeLocatLength()
 
 	// TODO:  在此添加控件通知处理程序代码
 	CEdit* pEdit = (CEdit*)GetDlgItem(IDC_LOCAT_LENGTH);
-	pEdit->LimitText(3);
+	pEdit->LimitText(4);
 	UpdateData(TRUE);
-	if (atol(V_Trawl_Length) > 500)
+	if (atol(V_Trawl_Length) > 5000)
 	{
-		V_Trawl_Length  = "500";
+		V_Trawl_Length  = "5000";
 		UpdateData(FALSE);
 		pEdit->SetSel(V_Trawl_Length.GetLength(),V_Trawl_Length.GetLength()); //移动光标
-		//ShowBalloonTip(L"只能输入1-500",L"输入",TTI_ERROR);
-		ShowBalloonTip(L"数值范围",L"1～500",TTI_ERROR,IDC_LOCAT_LENGTH);
+		//ShowBalloonTip(L"只能输入1-5000",L"输入",TTI_ERROR);
+		ShowBalloonTip(L"数值范围",L"1～5000",TTI_ERROR,IDC_LOCAT_LENGTH);
 	}
 	else if (atol(V_Trawl_Length) == 0)
 	{
 		V_Trawl_Length  = "";
 		UpdateData(FALSE);
 		pEdit->SetSel(V_Trawl_Length.GetLength(),V_Trawl_Length.GetLength()); //移动光标
-		ShowBalloonTip(L"数值范围",L"1～500",TTI_ERROR,IDC_LOCAT_LENGTH);
+		ShowBalloonTip(L"数值范围",L"1～5000",TTI_ERROR,IDC_LOCAT_LENGTH);
 	}
 }
 
@@ -509,17 +533,17 @@ void Trawl::OnChangeLocatWidth()
 	// TODO:  在此添加控件通知处理程序代码
 	CEdit* pEdit = (CEdit*)GetDlgItem(IDC_LOCAT_WIDTH);
 	if (V_Trawl_Width[0] == '-')
-		pEdit->LimitText(4);
-	else pEdit->LimitText(3);
+		pEdit->LimitText(5);
+	else pEdit->LimitText(4);
 	UpdateData(TRUE);
 	//printf ("length = %d\n",V_Trawl_Width.GetLength());
 	//printf ("find = %d\n",V_Trawl_Width.Find("-"));
 	//printf ("WIDTH = %d\n",V_Trawl_Width[V_Trawl_Width.GetLength()-1]);
-	if (V_Trawl_Width.GetLength()>0) 
+	if (V_Trawl_Width.GetLength()>0) // 只允许输入数字，第一位允许输入‘-’
 	{
 		if (V_Trawl_Width[V_Trawl_Width.GetLength()-1]<'0'||V_Trawl_Width[V_Trawl_Width.GetLength()-1]>'9') 
 		{
-			if (V_Trawl_Width[V_Trawl_Width.GetLength()-1] != '-' ||V_Trawl_Width.GetLength()>1 )
+			if (V_Trawl_Width[V_Trawl_Width.GetLength()-1] != '-' || V_Trawl_Width.GetLength()>1 )
 			{
 				V_Trawl_Width.Delete((int)V_Trawl_Width.GetLength()-1,1);
 				UpdateData(FALSE);
@@ -528,20 +552,20 @@ void Trawl::OnChangeLocatWidth()
 		}
 	}
 
-	// 现在最大输入范围为-200到200 之间
-	if (atol(V_Trawl_Width) > 200)
+	// 现在最大输入范围为-5000到5000 之间
+	if (atol(V_Trawl_Width) > 5000)
 	{
-		V_Trawl_Width = "200";
+		V_Trawl_Width = "5000";
 		UpdateData(FALSE);
 		pEdit->SetSel(V_Trawl_Width.GetLength(),V_Trawl_Width.GetLength()); //移动光标
-		ShowBalloonTip(L"数值范围",L"-200～200",TTI_ERROR,IDC_LOCAT_WIDTH);
+		ShowBalloonTip(L"数值范围",L"-5000～5000",TTI_ERROR,IDC_LOCAT_WIDTH);
 	}
-	else if ( atol(V_Trawl_Width) < -200)
+	else if ( atol(V_Trawl_Width) < -5000)
 	{
-		V_Trawl_Width = "-200";
+		V_Trawl_Width = "-5000";
 		UpdateData(FALSE);
 		pEdit->SetSel(V_Trawl_Width.GetLength(),V_Trawl_Width.GetLength()); //移动光标
-		ShowBalloonTip(L"数值范围",L"-200～200",TTI_ERROR,IDC_LOCAT_WIDTH);
+		ShowBalloonTip(L"数值范围",L"-5000～5000",TTI_ERROR,IDC_LOCAT_WIDTH);
 	}
 	
 }
@@ -564,6 +588,7 @@ void Trawl::OnTimer(UINT_PTR nIDEvent)
 		GetDlgItem(IDC_EDIT_Code)->EnableWindow(TRUE);
 		GetDlgItem(IDC_LOCAT_LENGTH)->EnableWindow(TRUE);
 		GetDlgItem(IDC_LOCAT_WIDTH)->EnableWindow(TRUE);
+		GetDlgItem(IDC_LOCAT_READ)->EnableWindow(TRUE);
 
 		if(!V_Trawl_ShipName.IsEmpty() && !V_Trawl_NetNum.IsEmpty())
 			GetDlgItem(IDC_ShipNameWrite)->EnableWindow(TRUE);
